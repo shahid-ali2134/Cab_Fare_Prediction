@@ -27,9 +27,7 @@ To run the models and evaluate their performance in the 'Cab Fare Prediction' pr
 4. **scikit-learn:** A key library for machine learning, used here for Random Forest implementation, data splitting, preprocessing with StandardScaler, and evaluating model performance through metrics like confusion matrix and classification report.
 5. **scipy:** While not explicitly listed in your format, the inclusion of from scipy.stats import chi2_contingency suggests statistical tests or analysis may be performed, thus it's beneficial for users to have scipy installed as well.
 To install these libraries, you can use the following pip command in your terminal or command prompt:
-```bash
-pip install pandas numpy matplotlib seaborn scikit-learn scipy
-```
+
 ## Dataset Overview
 For this project, we leverage a dataset to train models capable of predicting cab fares accurately. This dataset, rich in ride-related attributes, provides a foundation for analyzing and understanding factors that influence fare prices, enabling the development of predictive models.
 
@@ -55,22 +53,6 @@ To ensure the integrity and quality of the data used for our cab fare prediction
 - Missing passenger_count values were filled with 0, converted to integers, and zeros were replaced with NaN for clarity.
 - Zero values in location coordinates (pickup_longitude, pickup_latitude, dropoff_longitude, dropoff_latitude) were replaced with NaN to signify missing data.
 - Removed rows where pickup and dropoff locations are identical, as these do not contribute to meaningful fare prediction.
-```
-# Handling Missing and Incorrect Values, Geographical Filtering
-
-df['fare_amount'] = df['fare_amount'].apply(pd.to_numeric, errors='coerce')
-df['fare_amount'] = df['fare_amount'].replace({0: np.nan})
-df['passenger_count'] = df['passenger_count'].fillna(0)
-df['passenger_count'] = df['passenger_count'].astype(int)
-df['passenger_count'] = df['passenger_count'].replace({0: np.nan})
-df['pickup_longitude'] = df['pickup_longitude'].replace({0: np.nan})
-df['pickup_latitude'] = df['pickup_latitude'].replace({0: np.nan})
-df['dropoff_longitude'] = df['dropoff_longitude'].replace({0: np.nan})
-df['dropoff_latitude'] = df['dropoff_latitude'].replace({0: np.nan})
-
-df = df[np.logical_and(df['pickup_longitude'] != df['dropoff_longitude'],
-                       df['pickup_latitude'] != df['dropoff_latitude'])]
-```
 
 ### Data Distribution Visualization
 - Visualized the distribution of key features including fare_amount, and pickup/dropoff coordinates using seaborn's distribution plots to understand data spread and identify outliers.
@@ -78,120 +60,31 @@ df = df[np.logical_and(df['pickup_longitude'] != df['dropoff_longitude'],
 - Calculated and sorted missing values by percentage to prioritize handling.
 - Imputed missing values in fare_amount and location coordinates with their mean to maintain data integrity.
 - For passenger_count, missing values were filled with the mode, reflecting the most common scenario.
-```
-# Data Distribution Visualization
-
-sns.set(style='darkgrid', palette='Set1')
-plt.figure(figsize=(20, 20))
-plt.subplot(321)
-_ = sns.distplot(df['fare_amount'], bins=50)
-plt.subplot(322)
-_ = sns.distplot(df['pickup_longitude'], bins=50)
-plt.subplot(323)
-_ = sns.distplot(df['pickup_latitude'], bins=50)
-plt.subplot(324)
-_ = sns.distplot(df['dropoff_longitude'], bins=50)
-plt.subplot(325)
-_ = sns.distplot(df['dropoff_latitude'], bins=50)
-plt.show()
-```
 ![1](https://github.com/shahid-ali2134/CabFarePrediction/assets/88580273/658741f7-e34d-4213-8336-cf3cf8958d64)
-
-
-```
-# Calculate Missing Values
-missing_val = pd.DataFrame(df.isnull().sum())
-missing_val = missing_val.reset_index()
-missing_val = missing_val.rename(columns = {'index': 'Variables', 0: 'count'})
-missing_val['Missing_percentage'] = (missing_val['count']/len(df)*100)
-missing_val = missing_val.sort_values('Missing_percentage', ascending=False).reset_index(drop=True)
-
-# Impute Missing Values
-df['fare_amount'] = df['fare_amount'].fillna(df['fare_amount'].mean())
-df['pickup_longitude'] = df['pickup_longitude'].fillna(df['pickup_longitude'].mean())
-df['pickup_latitude'] = df['pickup_latitude'].fillna(df['pickup_latitude'].mean())
-df['dropoff_longitude'] = df['dropoff_longitude'].fillna(df['dropoff_longitude'].mean())
-df['dropoff_latitude'] = df['dropoff_latitude'].fillna(df['dropoff_latitude'].mean())
-df['passenger_count'] = df['passenger_count'].fillna(int(df['passenger_count'].mode()))
-```
 
 
 ### Outlier Detection and Handling
 - Identified and treated outliers in numerical features based on IQR method, setting values beyond a calculated range to NaN.
 - Imputed these missing values post-outlier detection with mean for location coordinates and mode for passenger_count to ensure data consistency.
-```
-# Detect and handle outliers for numerical columns
-coutliers = ['pickup_longitude', 'pickup_latitude', 'dropoff_longitude', 'dropoff_latitude']
-for col in coutliers:
-    q75, q25 = np.percentile(df[col], [75 ,25])
-    iqr = q75 - q25
-    minimum = q25 - (iqr*1.5)
-    maximum = q75 + (iqr*1.5)
-    df.loc[df[col] < minimum, col] = np.nan
-    df.loc[df[col] > maximum, col] = np.nan
-
-# Impute missing values post-outlier detection
-df['pickup_longitude'] = df['pickup_longitude'].fillna(df['pickup_longitude'].mean())
-df['pickup_latitude'] = df['pickup_latitude'].fillna(df['pickup_latitude'].mean())
-df['dropoff_longitude'] = df['dropoff_longitude'].fillna(df['dropoff_longitude'].mean())
-df['dropoff_latitude'] = df['dropoff_latitude'].fillna(df['dropoff_latitude'].mean())
-df['passenger_count'] = df['passenger_count'].fillna(int(df['passenger_count'].mode()))
-```
 
 
 
 ### Feature Engineering
 - Utilized the Haversine formula to calculate distances between pickup and dropoff points, adding valuable spatial information for our models.
-```
-# Haversine formula to calculate distance between pickup and dropoff points
-def haversine(lat1, lon1, lat2, lon2, to_radians=True, earth_radius=6371):
-    if to_radians:
-        lat1, lon1, lat2, lon2 = np.radians([lat1, lon1, lat2, lon2])
-    a = np.sin((lat2-lat1)/2.0)**2 + np.cos(lat1) * np.cos(lat2) * np.sin((lon2-lon1)/2.0)**2
-    return earth_radius * 2 * np.arcsin(np.sqrt(a))
-```
 
 ### Correlation Analysis
 - Performed correlation analysis among numerical features to identify potential relationships and redundancies, visualized through a heatmap.
-```
-# Correlation analysis among numerical features
-numeric = ['fare_amount', 'pickup_longitude', 'pickup_latitude', 'dropoff_longitude', 'dropoff_latitude']
-df_corr = df.loc[:, numeric]
-corr = df_corr.corr()
-
-# Visualization with heatmap
-sns.heatmap(corr, mask=np.zeros_like(corr, dtype=np.bool), cmap=sns.diverging_palette(220, 10, as_cmap=True), square=True)
-```
 ![2](https://github.com/shahid-ali2134/CabFarePrediction/assets/88580273/1ef47ce7-20bc-41f9-8d81-1fe193ac14d3)
 
 
 
 ### Final Data Cleaning
 - Removed entries with identical pickup and dropoff locations as well as irregular fare_amount and passenger_count values, ensuring the dataset only contains valid and meaningful records.
-```
-# Remove entries with identical pickup and dropoff locations and irregular values
-df = df[np.logical_and(df['pickup_longitude'] != df['dropoff_longitude'], df['pickup_latitude'] != df['dropoff_latitude'])]
-df.loc[df['fare_amount'] < 0, 'fare_amount'] = np.nan
-df.loc[df['fare_amount'] > 30, 'fare_amount'] = np.nan
-df.loc[df['passenger_count'] > 8, 'passenger_count'] = np.nan
-df = df.dropna()
-```
 
 ## Splitting Data for Testing and Training
 We use the train_test_split method from scikit-learn to partition the dataset. This method allows us to randomly divide the data into training and testing sets, with the testing set comprising 20% of the total data. This proportion ensures that we have sufficient data for both training our models and validating their performance.
 
 The code snippet below demonstrates how to perform this split and print the shapes of the resulting datasets, providing insight into the distribution of data across the training and testing sets:
-```bash
-# Split the data into features (X) and labels (y)
-X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=0.2)
-
-# Print the shape of the resulting sets
-print("X_train shape:", X_train.shape)
-print("X_test shape:", X_test.shape)
-print("y_train shape:", y_train.shape)
-print("y_test shape:", y_test.shape)
-)
-```
 ## Model Training
 Each model was trained individually on the training dataset and eventually tested with the new unseen testing data, here's how it's done,
 
@@ -200,23 +93,6 @@ The model is instantiated with RandomForestRegressor from scikit-learn, specifyi
 
 Following instantiation, the model is trained (fit) on the training dataset, comprising the preprocessed features (X_train) and labels (y_train). This step involves the Random Forest algorithm learning the intricate patterns and relationships in the data to predict cab fares accurately.
 
-
-
-```bash
-# Import necessary libraries
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-
-# Create an instance of Random Forest Regressor
-rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
-
-# Fit the model on the training data
-rf_model.fit(X_train, y_train)
-
-# Make predictions on the test data
-y_pred_rf = rf_model.predict(X_test)
-
-```
 
 ### Neural Network :
 The model is constructed using TensorFlow's Keras API, which provides a more accessible interface for building and training deep learning models. Our neural network consists of:
@@ -228,28 +104,6 @@ The model is constructed using TensorFlow's Keras API, which provides a more acc
 
 Training is conducted over 10 epochs with a batch size of 32, and we use 20% of the training data as a validation set. This approach helps monitor the model's performance on unseen data during training, aiding in the detection and mitigation of overfitting.
 
-```
-import tensorflow as tf
-from tensorflow import keras
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-
-# Create a neural network model
-model = tf.keras.Sequential()
-model.add(tf.keras.layers.Dense(64, activation='relu', input_shape=(X_train.shape[1],)))
-model.add(tf.keras.layers.Dense(32, activation='relu'))
-model.add(tf.keras.layers.Dense(1))  # Output layer for regression
-
-
-# Compile the model
-model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mae', 'mse'])
-
-# Train the model on the training data
-history = model.fit(X_train, y_train, epochs=10, batch_size=32, validation_split=0.2)
-
-# Make predictions on the scaled test data
-y_pred_nn = model.predict(X_test).flatten()
-
-```
 
 ## Results and Observations
 After training, the model makes predictions on the unseen test dataset (X_test), allowing us to assess its performance through various metrics, including Mean Squared Error (MSE), Mean Absolute Error (MAE), the R-squared (R²) score, and the Mean Absolute Percentage Error (MAPE). These metrics provide a comprehensive view of the model's accuracy, error rate, and the proportion of variance in the fare amount that is predictable from the features, respectively.
